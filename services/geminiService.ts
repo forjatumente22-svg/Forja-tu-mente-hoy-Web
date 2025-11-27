@@ -5,27 +5,23 @@ let ai: GoogleGenAI | null = null;
 
 const getAiInstance = () => {
   if (!ai) {
-    // Robust API Key detection that works in both Vite Build (replaced string) and Raw Browser (process access check)
+    // Robust API Key detection
     let key = '';
     
-    // In Vite production build, process.env.API_KEY is text-replaced by the compiler.
-    // In dev/preview, we need to be careful not to reference 'process' if it doesn't exist.
     try {
-      // @ts-ignore - Check for process existence safely
+      // @ts-ignore
       if (typeof process !== 'undefined' && process.env) {
         key = process.env.API_KEY || '';
       } else {
-        // This block handles the case where Vite has replaced process.env.API_KEY with a string literal
-        // e.g., key = "AIza..." || '';
-        // If no replacement happened, this might be unreachable or empty depending on bundler.
         key = process.env.API_KEY || '';
       }
     } catch (e) {
-      console.warn("Environment check failed, assuming missing key in preview.");
+      console.warn("Environment check failed.");
     }
 
-    if (!key || key.includes("undefined")) {
-      throw new Error("API Key missing. Configure it in Netlify Environment Variables.");
+    if (!key || key.includes("undefined") || key.length === 0) {
+      // Generic error message for manual builds
+      throw new Error("API Key Falta. Crea un archivo .env en tu PC con 'API_KEY=tu_clave' y ejecuta 'npm run build' de nuevo antes de subirlo.");
     }
     ai = new GoogleGenAI({ apiKey: key });
   }
@@ -51,8 +47,12 @@ export const streamForgeResponse = async (
         onChunk(chunk.text);
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Forge API Error:", error);
-    onChunk("\n[Error: El fuego no prende. Verifica que hayas añadido la API_KEY en Netlify (Site Settings > Environment Variables) o recarga la página.]");
+    let msg = "\n[Error: El fuego no prende.]";
+    if (error.message.includes("API Key")) {
+      msg += "\n[Causa: Falta la API Key en el build. Revisa el archivo .env]";
+    }
+    onChunk(msg);
   }
 };
